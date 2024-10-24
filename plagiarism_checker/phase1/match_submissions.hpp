@@ -2,8 +2,10 @@
 #include <iostream>
 #include <span>
 #include <vector>
-#include<cmath>
 // -----------------------------------------------------------------------------
+#include <unordered_set>
+#include <algorithm>
+#include <cmath>
 
 // You are free to add any STL includes above this comment, below the --line--.
 // DO NOT add "using namespace std;" or include any other files/libraries.
@@ -42,15 +44,16 @@ void computeKMPTable(std::vector<int> &pat, int M, std::vector<int> &h)
 }
 
 // Prints occurrences of txt[] in pat[]
-void KMPSearch(std::vector<int> &pat, std::vector<int> &h, std::vector<int> &txt)
+int KMPSearch(std::vector<int> &pat, std::vector<int> &txt)
 {
     // printf("Found pattern at index %d \n", index_where_found);
     int i = 0;
     int j = 0;
     int m = pat.size();
-    // std::vector<int> h (m+1);
+    std::vector<int> h (m+1);
+    computeKMPTable(pat, m, h);
 
-    // computeKMPTable(pat, m, h);
+    // std::vector<int> patMatch;
 
     while (i < txt.size())
     {
@@ -61,8 +64,10 @@ void KMPSearch(std::vector<int> &pat, std::vector<int> &h, std::vector<int> &txt
             j++;
             if (j==m) //j==|Pat|
             {
-                printf("Found pattern at index %d \n", i - j);
-                j = h[j];
+                printf("Found pattern at index %d of len %d \n", i - j, j);
+                // patMatch.push_back(i-j);
+                // j = h[j];
+                return j; //modified to return the length of pattern match
             }
         }
         else
@@ -75,6 +80,7 @@ void KMPSearch(std::vector<int> &pat, std::vector<int> &h, std::vector<int> &txt
             }
         }
     }
+    return 0;
 }
 
 std::array<int, 5> match_submissions(std::vector<int> &submission1,
@@ -85,32 +91,43 @@ std::array<int, 5> match_submissions(std::vector<int> &submission1,
     if(submission1.size()>submission2.size()) 
         return match_submissions(submission2, submission1);
 
-    // // take all substrings/patterns in 1 which have length 10-20 and do kmp on 2
-    // for(int i=0; i<submission1.size(); i++){
-    //     std::vector<int> kmpTable( submission1.size()-i+1);
-    //     std::vector<int> pathelper(submission1.begin()+i, submission1.end());
-    //     computeKMPTable(pathelper, submission1.size()-i, kmpTable);
-        
-    //     //len =10, ...20 and take substr(i, i+len) as pattern
-    //     for(int j=i+10; j<i+20 && j<submission1.size() ; j++){ 
-    //         std::vector<int> pat(submission1.begin()+i, submission1.begin()+j);
-    //         KMPSearch(pat , kmpTable, submission2);
-    //     }
-    // }
+    std::unordered_set<int> matchedIndices;
+    int totalMatch=0;
+
     for (int i = 0; i < submission1.size(); ++i) {
-        for (int len = 10; len <= 20 && i + len <= submission1.size(); ++len) {
-            std::vector<int> pattern(submission1.begin() + i, submission1.begin() + i + len);
-
-            // Compute KMP table for the current pattern
-            std::vector<int> kmpTable(pattern.size());
-            computeKMPTable(pattern, kmpTable);
-
-            // Perform KMP search on submission2
-            KMPSearch(pattern, kmpTable, submission2);
+        // If index `i` is part of an already matched pattern, skip it
+        if (matchedIndices.count(i)) {
+            continue;
         }
-    }
+        // Check patterns of length between 20 and 10 (start from larger patterns first)
+        for (int len = 20; len >= 10; --len) {
+            if (i + len > submission1.size()) continue;  // Skip out-of-bound patterns
 
-    std::array<int, 5> result = {0, 0, 0, 0, 0};
+            std::vector<int> pattern(submission1.begin() + i, submission1.begin() + i + len);
+            int match=KMPSearch(pattern, submission2);
+            totalMatch+=match;
+
+            if (match>0) {
+                // Mark all indices within this pattern as "matched"
+                for (int j = i; j < i + len; ++j) {
+                    matchedIndices.insert(j);
+                }
+                break;  // Skip smaller patterns if a larger one is found
+            }
+        }
+        // for (int len = 10; len <= 20 && i + len <= submission1.size(); ++len) {
+        //     std::vector<int> pattern(submission1.begin() + i, submission1.begin() + i + len);
+
+        //     // Perform KMP search on submission2
+        //     KMPSearch(pattern, submission2);
+        // }
+    }
+    std::cout<<totalMatch<<std::endl;
+    std::cout<<"Subm1.size(): "<<submission1.size()<<" Subm2.size(): "<<submission2.size()<<std::endl;
+
+    double fracPlag =totalMatch/(double(std::max(submission1.size(), submission2.size())));
+    int hasPlag=(fracPlag>0.5);
+    std::array<int, 5> result = {hasPlag, totalMatch, 0, 0, 0};
     return result; // dummy return
     // End TODO
 }
