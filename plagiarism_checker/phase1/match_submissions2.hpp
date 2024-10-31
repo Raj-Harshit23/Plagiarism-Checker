@@ -2,116 +2,192 @@
 #include <iostream>
 #include <span>
 #include <vector>
-#include <cmath>
-#include <string>
-#include <unordered_set>
-#include <algorithm>
-#include <functional>
-#include <limits>
 // -----------------------------------------------------------------------------
+#include <unordered_set>
+#include <unordered_map>
+#include <algorithm>
+// #include <tuple>
+#include <cmath>
 
 // You are free to add any STL includes above this comment, below the --line--.
 // DO NOT add "using namespace std;" or include any other files/libraries.
 // Also DO NOT add the include "bits/stdc++.h"
 
 // OPTIONAL: Add your helper functions and data structures here
-const int MIN_PATTERN_LENGTH = 10;  // Minimum length for matches
-const int LONG_PATTERN_THRESHOLD = 30; // Maximum length to search for long matches
 
-// Structure to hold match information
-struct Match {
-    int start1; // Start index in submission 1
-    int start2; // Start index in submission 2
-    int length; // Length of the match
-};
+// Fills h[] for given pattern pat[0..M-1]
+void computeKMPTable(std::vector<int> &pat, int M, std::vector<int> &h)
+{
+    h[0] = -1;
+    int i = 1;
+    int j = 0;
 
-// Function to find non-overlapping matches
-std::vector<Match> find_matches(const std::vector<int>& submission1, const std::vector<int>& submission2) {
-    int n = submission1.size();
-    int m = submission2.size();
+    while (i < M)
+    {
+        // printf("Inside table loop\n, i=%d, j=%d", i, j);
+        if (pat[i] != pat[j])
+        {
+            h[i] = j;
+            // precompute for next iteration
+            while (j >= 0 && pat[i] != pat[j])
+            {
+                // printf("Inside table precompute loop\n, i=%d, j=%d", i, j);
+                j = h[j];
+            }
+        }
+        else
+        {
+            h[i] = h[j];
+        }
+        i++;
+        j++;
+    }
+    h[i] = j;
+}
 
-    // Create a DP table to store lengths of longest matches
-    std::vector<std::vector<int>> dp(n + 1, std::vector<int>(m + 1, 0));
+// Prints occurrences of txt[] in pat[]
+int KMPSearch(std::vector<int> &pat, std::vector<int> &txt)
+{
+    // printf("Found pattern at index %d \n", index_where_found);
+    int i = 0;
+    int j = 0;
+    int m = pat.size();
+    std::vector<int> h (m+1);
+    computeKMPTable(pat, m, h);
 
-    // Fill the DP table
-    for (int i = 1; i <= n; ++i) {
-        for (int j = 1; j <= m; ++j) {
-            if (submission1[i - 1] == submission2[j - 1]) {
-                dp[i][j] = dp[i - 1][j - 1] + 1;
+    // std::vector<int> patMatch;
+
+    while (i < txt.size())
+    {
+        // printf("Inside search loop\n, i=%d, j=%d", i, j);
+        if (pat[j] == txt[i])
+        {
+            i++;
+            j++;
+            if (j==m) //j==|Pat|
+            {
+                printf("Found pattern at index %d of len %d \n", i - j, j);
+                // patMatch.push_back(i-j);
+                // j = h[j];
+                return j; //modified to return the length of pattern match
+            }
+        }
+        else
+        {
+            j = h[j];
+            if (j < 0)
+            {
+                i++;
+                j++;
             }
         }
     }
+    return 0;
+}
 
-    // Vector to store matches found
-    std::vector<Match> matches;
-    for (int i = 1; i <= n; ++i) {
-        for (int j = 1; j <= m; ++j) {
-            // If there is a match and it's long enough
-            if (dp[i][j] >= MIN_PATTERN_LENGTH) {
-                matches.push_back({i - dp[i][j], j - dp[i][j], dp[i][j]});
+// Utility function to calculate a simple hash for a window
+size_t compute_hash(std::vector<int>& vec, int start, int len) {
+    size_t hash_value = 0;
+    for (int i = start; i < start + len; i++) {
+        hash_value = hash_value * 31 + vec[i];  // Hash multiplier (prime number)
+    }
+    return hash_value;
+}
+
+std::vector<int> longest_approximate_match(std::vector<int>& vec1, std::vector<int>& vec2) {
+    // for 0.8
+    // Testcase 1: 4.32953 / 5.0
+    // Testcase 2: 4.80012 / 5.0
+    // Testcase 3: 3.79155 / 5.0
+    // Total score: 12.9212 / 15.0
+    int max_len = static_cast<int>(0.8 * std::max(vec1.size(), vec2.size()));
+    int min_len = 30;
+    
+    int longest_match_len = 0;
+    int start_idx1 = -1;
+    int start_idx2 = -1;
+
+    // For each possible window length, find matches
+    for (int len = max_len; len >= min_len; len--) {
+        std::unordered_map<size_t, int> hash_map;
+
+        // Compute hashes for each window in vec1
+        for (int i = 0; i <= vec1.size() - len; i++) {
+            size_t hash_val = compute_hash(vec1, i, len);
+            hash_map[hash_val] = i;
+        }
+
+        // Compute hashes for each window in vec2 and look for matches in vec1
+        for (int j = 0; j <= vec2.size() - len; j++) {
+            size_t hash_val = compute_hash(vec2, j, len);
+            if (hash_map.find(hash_val) != hash_map.end()) {
+                // A match is found
+                int i = hash_map[hash_val];
+                if (len > longest_match_len) {
+                    longest_match_len = len;
+                    start_idx1 = i;
+                    start_idx2 = j;
+                }
             }
         }
-    }
-
-    return matches;
-}
-
-// Function to filter non-overlapping matches
-std::vector<Match> filter_non_overlapping_matches(std::vector<Match>& matches) {
-    std::vector<Match> filtered;
-    int last_end1 = -1;  // Last end index in submission1
-
-    // Sort matches by start index in submission1
-    std::sort(matches.begin(), matches.end(), [](const Match& a, const Match& b) {
-        return a.start1 < b.start1;
-    });
-
-    // Iterate over matches and keep non-overlapping ones
-    for (const auto& match : matches) {
-        if (match.start1 >= last_end1) {
-            filtered.push_back(match);
-            last_end1 = match.start1 + match.length;  // Update last end
+        
+        // Break if a match of this length is found, as we are finding the longest match
+        if (longest_match_len > 0) {
+            break;
         }
     }
 
-    return filtered;
+    return {longest_match_len, start_idx1, start_idx2};
 }
 
-// Main function to match submissions
-std::array<int, 5> match_submissions(std::vector<int>& submission1, std::vector<int>& submission2) {
-    std::array<int, 5> result = {0, 0, 0, -1, -1}; // Initialize results
-    auto matches = find_matches(submission1, submission2);
-    
-    // Filter non-overlapping matches
-    matches = filter_non_overlapping_matches(matches);
+std::array<int, 5> match_submissions(std::vector<int> &submission1,
+                                     std::vector<int> &submission2)
+{
+    // TODO: Write your code here
+    // ensure 1 is the smaller one
+    if(submission1.size()>submission2.size()) 
+        return match_submissions(submission2, submission1);
 
-    // Calculate results based on found matches
-    for (const auto& match : matches) {
-        result[1] += match.length; // Total length of matched patterns
-        result[0] = 1; // Flag as plagiarized if any matches found
-        if (match.length > result[2]) {
-            result[2] = match.length; // Update longest match length
-            result[3] = match.start1; // Start index in submission 1 for longest match
-            result[4] = match.start2; // Start index in submission 2 for longest match
+    std::unordered_set<int> matchedIndices;
+    int totalMatch=0;
+
+    for (int i = 0; i < submission1.size(); ++i) {
+        // If index `i` is part of an already matched pattern, skip it
+        if (matchedIndices.count(i)) {
+            continue;
         }
+        // Check patterns of length between 20 and 10 (start from larger patterns first)
+        for (int len = 30; len >= 10; --len) {
+            if (i + len > submission1.size()) continue;  // Skip out-of-bound patterns
+
+            std::vector<int> pattern(submission1.begin() + i, submission1.begin() + i + len);
+            int match=KMPSearch(pattern, submission2);
+            totalMatch+=match;
+
+            if (match>0) {
+                // Mark all indices within this pattern as "matched"
+                for (int j = i; j < i + len; ++j) {
+                    matchedIndices.insert(j);
+                }
+                break;  // Skip smaller patterns if a larger one is found
+            }
+        }
+        // for (int len = 10; len <= 20 && i + len <= submission1.size(); ++len) {
+        //     std::vector<int> pattern(submission1.begin() + i, submission1.begin() + i + len);
+
+        //     // Perform KMP search on submission2
+        //     KMPSearch(pattern, submission2);
+        // }
     }
+    std::cout<<totalMatch<<std::endl;
+    std::cout<<"Subm1.size(): "<<submission1.size()<<" Subm2.size(): "<<submission2.size()<<std::endl;
 
-    // Debug information
-    std::cout << "Debug: Total matches found: " << matches.size() 
-              << ", Total matched length: " << result[1] 
-              << ", Longest match length: " << result[2] 
-              << "start: " << result[3]
-              << "end: " << result[4] << std::endl;
+    std::vector<int> approxMatch=longest_approximate_match(submission1, submission2);
+    std::cout<<"Approx match length: "<<approxMatch[0]<<" starting at "<<approxMatch[1]<<" and "<<approxMatch[2]<<std::endl;
 
-    return result;
+    double fracPlag =totalMatch/(double(std::max(submission1.size(), submission2.size())));
+    int hasPlag=(fracPlag>0.5);
+    std::array<int, 5> result = {hasPlag, totalMatch, approxMatch[0], approxMatch[1], approxMatch[2]};
+    return result; // dummy return
+    // End TODO
 }
-
-
-// std::array<int, 5> match_submissions(std::vector<int> &submission1, std::vector<int> &submission2) {
-    
-    
-//     // TODO: Write your code here
-//     std::array<int, 5> result = {0, 0, 0, 0, 0};
-//     return result; // dummy return
-//     // End TODO
-// }
