@@ -151,11 +151,10 @@ public:
 // Using Longest Common Subsequence to find approximate matching
 class LCS
 {
-public:
-    // MAIN Function
-    // Returns length of longest match and starting indices in both vectors
-    static std::vector<int> longest_approximate_match(std::vector<int> &vec1, std::vector<int> &vec2)
-    {
+private:
+    std::vector<int> ind1, ind2; //Indices of LCS in both vectors
+
+    void findLCSIndices(const std::vector<int> &vec1, const std::vector<int> &vec2){
         int m = vec1.size();
         int n = vec2.size();
 
@@ -174,7 +173,6 @@ public:
 
         // Backtrack to find the LCS elements and their indices
         // Ref: https://www.geeksforgeeks.org/printing-longest-common-subsequence/
-        std::vector<int> ind1, ind2;
         int i = m, j = n;
         while (i > 0 && j > 0) {
             // If current character in vec1 and vec2 are same, then
@@ -199,7 +197,17 @@ public:
         std::reverse(ind1.begin(), ind1.end());
         std::reverse(ind2.begin(), ind2.end());
 
-        // Answers : length, start-index1, start-index2
+    }
+public:
+    // MAIN Function
+    // Returns length of longest match and starting indices in both vectors
+    std::vector<int> longest_approximate_match(const std::vector<int> &vec1, const std::vector<int> &vec2)
+    {
+        int m = vec1.size();
+        int n = vec2.size();
+
+        findLCSIndices(vec1, vec2);
+
         int ans1=0;
         int ans2=0;
         int ans3=0;
@@ -276,7 +284,8 @@ std::array<int, 5> match_submissions(std::vector<int> &submission1,
     int totalMatch=total_match(submission1, submission2);
 
     // Approximate matching function
-    std::vector<int> approxMatch = LCS::longest_approximate_match(submission1, submission2);
+    LCS lcs;
+    std::vector<int> approxMatch = lcs.longest_approximate_match(submission1, submission2);
 
     // Report plag based on total and approx match
     double fracExactPlag = totalMatch / (double(std::max(submission1.size(), submission2.size())));
