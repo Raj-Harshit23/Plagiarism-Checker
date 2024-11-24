@@ -25,6 +25,7 @@ public:
 protected:
     // TODO: Add members and function signatures here
     std::vector<std::shared_ptr<submission_t>> submissions;
+    int numOrigs;
     std::vector<double> timestamps;
     // Should take difference for timestamps?store initial time for constructor
     std::queue<std::pair<std::shared_ptr<submission_t>, double>> submission_queue; // Queue for submissions
