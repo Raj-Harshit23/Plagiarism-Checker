@@ -7,7 +7,6 @@ const long long BASE=37;
 const long long MOD=1e7+7;
 
 
-
 ThreadPool::ThreadPool() {}
 
 // destructor to stop the thread pool and clean up resources
@@ -88,35 +87,8 @@ void ThreadPool::ThreadLoop() {
 //https://stackoverflow.com/questions/15752659/thread-pooling-in-c11 
 //BASED ON THIS DISCUSSION ON STACKOVERFLOW. CHANGED TO MAKE QUEUE EMPTY FOR DESTRUCTOR TO INITIATE DESTRUCTION. ALSO ONLY 1 THREAD USED FOR THE POOL.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Reference: https://www.geeksforgeeks.org/rabin-karp-algorithm-for-pattern-searching/
+// Reference: https://en.wikipedia.org/wiki/Rolling_hash
 std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
     std::vector<long long> hashes;
     long long base_k=1;
@@ -141,27 +113,26 @@ std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
 }
 
 
-class BloomFilter{
-public:
-    std::bitset<400000> bitArray;
-    BloomFilter(){
-    }
-    // Simple hash functions for demonstration
-    long long hash1(long long value) { return (value * 17 + 5) % 400000; }
-    long long hash2(long long value) { return (value * 23 + 11) % 400000; }
-    long long hash3(long long value) { return (value * 29 + 7) % 400000; }
-    long long hash4(long long value) { return (value * 31 + 13) % 400000; }
-    long long hash5(long long value) { return (value * 37 + 17) % 400000; }
-    long long hash6(long long value) { return (value * 41 + 19) % 400000; }
-    long long hash7(long long value) { return (value * 53 + 23) % 400000; }
-    long long hash8(long long value) { return (value * 59 + 29) % 400000; }
-    long long hash9(long long value) { return (value * 61 + 31) % 400000; }
-    long long hash10(long long value) { return (value * 67 + 37) % 400000; }
-    long long hash11(long long value) { return (value * 71 + 41) % 400000; }
-    long long hash12(long long value) { return (value * 73 + 43) % 400000; }
-    long long hash13(long long value) { return (value * 79 + 47) % 400000; }
+// BloomFilter Functions
+// Reference : https://en.wikipedia.org/wiki/Bloom_filter
+// Reference : https://www.javatpoint.com/write-a-cpp-program-to-implement-the-bloom-filter-data-structure
+// 13 hash functions (optimal number found manually considering tradeoff b/w time and accuracy)
+long long BloomFilter::hash1(long long value) { return (value * 17 + 5) % 400000; }
+long long BloomFilter::hash2(long long value) { return (value * 23 + 7) % 400000; }
+long long BloomFilter::hash3(long long value) { return (value * 31 + 11) % 400000; }
+long long BloomFilter::hash4(long long value) { return (value * 37 + 13) % 400000; }
+long long BloomFilter::hash5(long long value) { return (value * 41 + 17) % 400000; }
+long long BloomFilter::hash6(long long value) { return (value * 43 + 19) % 400000; }
+long long BloomFilter::hash7(long long value) { return (value * 47 + 23) % 400000; }
+long long BloomFilter::hash8(long long value) { return (value * 53 + 29) % 400000; }
+long long BloomFilter::hash9(long long value) { return (value * 59 + 31) % 400000; }
+long long BloomFilter::hash10(long long value) { return (value * 61 + 37) % 400000; }
+long long BloomFilter::hash11(long long value) { return (value * 67 + 41) % 400000; }
+long long BloomFilter::hash12(long long value) { return (value * 71 + 43) % 400000; }
+long long BloomFilter::hash13(long long value) { return (value * 73 + 47) % 400000; }
 
-    void add(long long value) {
+// Setting the bits corresponding to the hashes of an element in the Bloom filter
+void BloomFilter::add(long long value) {
         bitArray[hash1(value)] = 1;
         bitArray[hash2(value)] = 1;
         bitArray[hash3(value)] = 1;
@@ -177,22 +148,27 @@ public:
         bitArray[hash13(value)] = 1;
         
     }
-    std::bitset<400000> give(){
+
+// Return the bitset array
+std::bitset<400000> BloomFilter::give(){
         return bitArray;
     }
 
-    bool contains(std::bitset<400000>& givenArray,long long value) {
+// Check if an element is in the Bloom filter (This is based on a probability, element is not actually present)
+bool BloomFilter::contains(std::bitset<400000>& givenArray,long long value) {
         return givenArray[hash1(value)] && givenArray[hash2(value)] && givenArray[hash3(value)] && givenArray[hash4(value)] && givenArray[hash5(value)] && givenArray[hash6(value)] && givenArray[hash7(value)] && givenArray[hash8(value)] && givenArray[hash9(value)] && givenArray[hash10(value)] && givenArray[hash11(value)] && givenArray[hash12(value)] && givenArray[hash13(value)] ;
     }
-};
 
+//------------------------------------------------------------------------------
 
-
-
-
+// In len15check, we are checking for the present submissions, number of matching patterns it has with
+// previous submissions one by one. If it matches with any of the previous submissions, we call report the 
+// submission. Also if they are in a time difference of less than 1 sec, then we report both of them
+// For matching patterns, we calc the rolling hash 15 sized window of present submission and check each of their 
+// existence in previous bloomfilter bitsets. If their count happens to be more than 10 for a pair of files,
+// plag is reported
 void plagiarism_checker_t::len15check(std::vector<int>& submission, double start_time)
 {
-    // std::vector<long long> rolled = RollHash(submission,15);
     std::vector<long long> rolled1 = RollHash(submission,10);
     std::vector<int> rolled1int;
     for (auto i : rolled1) {
@@ -212,15 +188,12 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
                 count++;
                 i+=15;  // NON OVERLAPPING INCREMENT CONDITION
             }
-            // CHECK COUNT>=10 HERE ONLY
-            // Need to adjust the THRESHOLD according to false positive rate
             if(count>=10)
             {
             
                 // Plag present
                 if(curr>numOrigs && !plagged[curr])
                 {
-
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
@@ -237,7 +210,12 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             }
         }
         
+
         //PATCHWORK STARTS NOW
+        // For patchwork check, we utilise the above implementation itself and see if total number of matches 
+        // for present pattern is more than 20 with all previous submissions and also all those in less than 1 second window
+        // We report plag accordingly. Also due to the 1 second window check requirement, some previous submission's plag 
+        // may be reported with a delay if their total matches increase with future but closely submitted files (wrt time).
         for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets[j],rolled[i])){
@@ -263,6 +241,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             
         }
 
+        // 1 second window check if already plagged
         if(plagged[curr])
         {
             while(j>0 && plagged[j])
@@ -284,26 +263,6 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
     bitsets.push_back(bitArray);
     totalMatches.push_back(totalMatch);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
 {
