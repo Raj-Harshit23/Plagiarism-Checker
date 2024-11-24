@@ -18,27 +18,27 @@
 
 class ThreadPool {
 public:
-    ThreadPool();   // Constructor
-    ~ThreadPool();  // Destructor
-
-    void Start();           // Start the thread pool
-    void QueueJob(const std::function<void()>& job);  // Add a job to the queue
-    bool busy();            // Check if the pool has jobs
-    void Stop();            // Stop the pool
+    ThreadPool();
+    ~ThreadPool();
+    void Start();
+    void QueueJob(const std::function<void()>& job);
+    bool busy();
+    void Stop();
 
 private:
-    void ThreadLoop();      // Worker thread function
+    void ThreadLoop();
 
-    std::vector<std::thread> threads;          // List of threads in the pool
-    std::queue<std::function<void()>> jobs;    // Job queue
-    bool should_terminate = false;              // Flag to terminate workers
-    std::mutex queue_mutex;                     // Mutex for job queue
-    std::mutex job_counter_mutex;               // Mutex for tracking job count
-    std::condition_variable mutex_condition;    // Condition variable for job availability
-    std::condition_variable all_jobs_done_condition;  // Condition variable to signal all jobs are done
-    size_t remaining_jobs = 0;                  // Counter for remaining jobs
+    std::vector<std::thread> threads;
+    std::queue<std::function<void()>> jobs;
+    std::mutex queue_mutex;
+    std::condition_variable mutex_condition;
+
+    std::atomic<size_t> remaining_jobs{0};  // Use atomic size_t for thread-safe job count
+    std::mutex job_counter_mutex;  // Protects condition variable for remaining jobs
+    std::condition_variable all_jobs_done_condition;
+
+    bool should_terminate = false;
 };
-
 class plagiarism_checker_t {
     // You should NOT modify the public long longerface of this class.
 public:
