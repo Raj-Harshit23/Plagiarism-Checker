@@ -45,6 +45,7 @@ protected:
     std::thread t;
     std::vector<int> tokenize_file(const std::string& file_name);
     std::vector<std::bitset<400000>> bitsets;
+    std::vector<std::bitset<400000>> bitsets75;
     
     // End TODO
 };
