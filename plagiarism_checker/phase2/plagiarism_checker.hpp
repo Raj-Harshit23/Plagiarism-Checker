@@ -1,7 +1,9 @@
+
 #include "structures.hpp"
 // -----------------------------------------------------------------------------
 #include<set>
 #include<unordered_map>
+#include<unordered_set>
 #include<thread>
 #include<mutex>
 #include<chrono>
@@ -14,11 +16,10 @@
 // OPTIONAL: Add your helper functions and classes here
 
 class plagiarism_checker_t {
-    // You should NOT modify the public interface of this class.
+    // You should NOT modify the public long longerface of this class.
 public:
     plagiarism_checker_t(void);
-    plagiarism_checker_t(std::vector<std::shared_ptr<submission_t>> __submissions){
-    };
+    plagiarism_checker_t(std::vector<std::shared_ptr<submission_t>> __submissions);
     ~plagiarism_checker_t(void);
     void add_submission(std::shared_ptr<submission_t> __submission);
 
@@ -38,14 +39,9 @@ protected:
 
     // to check if the file is already plagged
     std::vector<bool> plagged;
-
-    // Queue of submissions in present 1 second window
-    // updated whenever a new submission is received
-    std::queue<std::pair<std::shared_ptr<submission_t>, double>> present_window;
-    std::thread t;
-    std::vector<int> tokenize_file(const std::string& file_name);
+    std::vector<long long> tokenize_file(const std::string& file_name);
     std::vector<std::bitset<400000>> bitsets;
     std::vector<std::bitset<400000>> bitsets75;
-    
+    std::vector<std::unordered_set<long long>> totalMatches;
     // End TODO
 };
