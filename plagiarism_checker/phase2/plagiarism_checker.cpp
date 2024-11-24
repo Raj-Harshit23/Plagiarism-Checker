@@ -3,43 +3,36 @@
 // Do NOT add "using namespace std;".
 
 // TODO: Implement the methods of the plagiarism_checker_t class
-const int BASE=257;
-const int MOD=1e9+7;
+const long long BASE=37;
+const long long MOD=1e7+7;
 
 std::mutex m;
 
-plagiarism_checker_t::plagiarism_checker_t(void) {
-    thread_running = true;
-    worker_thread = std::thread([this] {
-        while (thread_running) {
-            std::shared_ptr<submission_t> submission;
-            double start_time;
 
-            {
-                std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
-                if (!submission_queue.empty()) {
-                    submission = submission_queue.front().first;
-                    start_time = submission_queue.front().second;
-                    submission_queue.pop(); // Remove the submission from the queue
-                }
-            }
 
-            if (submission) {
-                check_plag(submission, start_time); // Process the submission
-            } else {
-                // If queue is empty, sleep for a short time
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
-    });
-    worker_thread.detach(); // Detach so it runs in the background
-}
-
-plagiarism_checker_t::~plagiarism_checker_t(void) {
-    thread_running = false;
-    if (worker_thread.joinable()) {
-        worker_thread.join(); // Optionally, wait for thread to finish
+std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
+    std::vector<long long> hashes;
+    long long base_k=1;
+        
+    for(long long i=0; i<k; i++){
+        base_k=(base_k*BASE)%MOD;
     }
+
+    long long hash=0;
+
+    //compute hash for first entry
+    for(long long i=k-1; i>=0; i--){
+        hash = (hash*BASE+tokens[i])% MOD;
+    }
+    hashes.push_back(hash);
+
+    //compute for rest of the entries by updating hash
+    for(long long i=k; i<tokens.size(); i++){
+        hash=(hash-tokens[i-k])/BASE;
+        hash=(hash+tokens[i]*(base_k/BASE))%MOD;
+        hashes.push_back(hash);
+    }
+    return hashes;
 }
 
 
@@ -49,28 +42,28 @@ public:
     BloomFilter(){
     }
     // Simple hash functions for demonstration
-    int hash1(int value) { return (value * 17 + 5) % 400000; }
-    int hash2(int value) { return (value * 23 + 11) % 400000; }
-    int hash3(int value) { return (value * 29 + 7) % 400000; }
-    int hash4(int value) { return (value * 31 + 13) % 400000; }
-    int hash5(int value) { return (value * 37 + 17) % 400000; }
-    int hash6(int value) { return (value * 41 + 19) % 400000; }
-    int hash7(int value) { return (value * 53 + 23) % 400000; }
-    int hash8(int value) { return (value * 59 + 29) % 400000; }
-    int hash9(int value) { return (value * 61 + 31) % 400000; }
-    int hash10(int value) { return (value * 67 + 37) % 400000; }
-    int hash11(int value) { return (value * 71 + 41) % 400000; }
-    int hash12(int value) { return (value * 73 + 43) % 400000; }
-    int hash13(int value) { return (value * 79 + 47) % 400000; }
-    int hash14(int value) { return (value * 83 + 53) % 400000; }
-    int hash15(int value) { return (value * 89 + 59) % 400000; }
-    int hash16(int value) { return (value * 97 + 61) % 400000; }
-    int hash17(int value) { return (value * 101 + 67) % 400000; }
-    int hash18(int value) { return (value * 103 + 71) % 400000; }
-    int hash19(int value) { return (value * 107 + 73) % 400000; }
-    int hash20(int value) { return (value * 109 + 79) % 400000; }
+    long long hash1(long long value) { return (value * 17 + 5) % 400000; }
+    long long hash2(long long value) { return (value * 23 + 11) % 400000; }
+    long long hash3(long long value) { return (value * 29 + 7) % 400000; }
+    long long hash4(long long value) { return (value * 31 + 13) % 400000; }
+    long long hash5(long long value) { return (value * 37 + 17) % 400000; }
+    long long hash6(long long value) { return (value * 41 + 19) % 400000; }
+    long long hash7(long long value) { return (value * 53 + 23) % 400000; }
+    long long hash8(long long value) { return (value * 59 + 29) % 400000; }
+    long long hash9(long long value) { return (value * 61 + 31) % 400000; }
+    long long hash10(long long value) { return (value * 67 + 37) % 400000; }
+    long long hash11(long long value) { return (value * 71 + 41) % 400000; }
+    long long hash12(long long value) { return (value * 73 + 43) % 400000; }
+    long long hash13(long long value) { return (value * 79 + 47) % 400000; }
+    long long hash14(long long value) { return (value * 83 + 53) % 400000; }
+    long long hash15(long long value) { return (value * 89 + 59) % 400000; }
+    long long hash16(long long value) { return (value * 97 + 61) % 400000; }
+    long long hash17(long long value) { return (value * 101 + 67) % 400000; }
+    long long hash18(long long value) { return (value * 103 + 71) % 400000; }
+    long long hash19(long long value) { return (value * 107 + 73) % 400000; }
+    long long hash20(long long value) { return (value * 109 + 79) % 400000; }
 
-    void add(int value) {
+    void add(long long value) {
         bitArray[hash1(value)] = 1;
         bitArray[hash2(value)] = 1;
         bitArray[hash3(value)] = 1;
@@ -97,50 +90,145 @@ public:
         return bitArray;
     }
 
-    bool contains(std::bitset<400000>& givenArray,int value) {
+    bool contains(std::bitset<400000>& givenArray,long long value) {
         return givenArray[hash1(value)] && givenArray[hash2(value)] && givenArray[hash3(value)] && givenArray[hash4(value)] && givenArray[hash5(value)] && givenArray[hash6(value)] && givenArray[hash7(value)] && givenArray[hash8(value)] && givenArray[hash9(value)] && givenArray[hash10(value)] && givenArray[hash11(value)] && givenArray[hash12(value)] && givenArray[hash13(value)] && givenArray[hash14(value)] && givenArray[hash15(value)] && givenArray[hash16(value)] && givenArray[hash17(value)] && givenArray[hash18(value)] && givenArray[hash19(value)] && givenArray[hash20(value)];
     }
 };
+plagiarism_checker_t::plagiarism_checker_t(void) {}
+plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submission_t>> __submissions) {
+    long long numOrigs = __submissions.size();
+    for(long long i=0;i<numOrigs;i++){
+        totalMatches.push_back(std::unordered_set<long long>());
+        plagged.push_back(0);
+        timestamps.push_back(0);
 
 
+        tokenizer_t origTokenizer(__submissions[i]->codefile);
+        std::vector<int> submissionTokens = origTokenizer.get_tokens();
 
-std::vector<int> RollHash(std::vector<int> &tokens, int k){
-    std::vector<int> hashes;
-    long long base_k=1;
-        
-    for(int i=0; i<k; i++){
-        base_k=(1LL*base_k*BASE)%MOD;
+        std::vector<long long> rolled = RollHash(submissionTokens,15);
+
+        std::vector<long long> rolled70 = RollHash(submissionTokens,70);
+        std::vector<int> rolled70int;
+        for (auto jk : rolled70int) {
+            jk = static_cast<int>(jk);
+            rolled70int.push_back(jk);
+        }
+        std::vector<long long> rolled75 = RollHash(rolled70int,5);
+
+        BloomFilter orig;
+        for(auto j: rolled){
+            orig.add(j);
+        }
+        std::bitset<400000> origBitarr = orig.give();
+        bitsets.push_back(origBitarr);
+       
+        BloomFilter orig75;
+        for(auto j: rolled75){
+            orig75.add(j);
+        }
+        std::bitset<400000> origBitarr75 = orig75.give();
+        bitsets75.push_back(origBitarr75);
     }
+    thread_running = true;
+    worker_thread = std::thread([this] {
+        while (thread_running) {
+            std::shared_ptr<submission_t> submission;
+            double start_time;
 
-    long long hash=0;
+            {
+                std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
+                if (!submission_queue.empty()) {
+                    submission = submission_queue.front().first;
+                    start_time = submission_queue.front().second;
+                    submission_queue.pop(); // Remove the submission from the queue
+                }
+            }
 
-    //compute hash for first entry
-    for(int i=k-1; i>=0; i++){
-        hash = (1LL*hash*BASE+tokens[i])% MOD;
-    }
-    hashes.push_back(hash);
-
-    //compute for rest of the entries by updating hash
-    for(int i=k; i<tokens.size(); i++){
-        hash=(hash-tokens[i-k])/BASE;
-        hash=(hash+tokens[i]*(base_k/BASE))%MOD;
-        hashes.push_back(hash);
-    }
-    return hashes;
+            if (submission) {
+                check_plag(submission, start_time); // Process the submission
+            }
+        }
+    });
+    worker_thread.detach(); // Detach so it runs in the background
 }
+
+plagiarism_checker_t::~plagiarism_checker_t(void) {
+    thread_running = false;
+    if (worker_thread.joinable()) {
+        worker_thread.join(); // Optionally, wait for thread to finish
+    }
+}
+
+
 
 void plagiarism_checker_t::len15check(std::vector<int>& submission, double start_time)
 {
-    std::vector<int> rolled = RollHash(submission,15);
-    // Corner case check
-    if (rolled.empty()) return;
-
-    int curr=bitsets.size();
+    // DONT STORE HASHES, USE BITSET DIRECTLY
+    std::vector<long long> rolled = RollHash(submission,15);
+    long long curr=bitsets.size();
     // Check how many non-overlapping hashes present in previous submissions, in reverse
-    for (int j=curr-1;j>=0;j--) {
-        int count=0;
+    for (long long j=curr-1;j>=0;j--) {
+        long long count=0;
         BloomFilter checker;
-        for(int i=0;i<(int)rolled.size();i++)
+        for(long long i=0;i<(long long)rolled.size();i++)
+        {
+            if(checker.contains(bitsets[j],rolled[i])){
+                count++;
+                i+=15;  // NON OVERLAPPING INCREMENT CONDITION
+            }
+            // CHECK COUNT>=10 HERE ONLY
+            // Need to adjust the THRESHOLD according to false positive rate
+            if(count>=10)
+            {
+                // Plag present
+                if(!plagged[curr])
+                {
+                    submissions[curr]->student->flag_student(submissions[curr]);
+                    submissions[curr]->professor->flag_professor(submissions[curr]);
+                    plagged[curr]=1;
+                }
+
+                // Plag close submissions
+                if(std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
+                {
+                    submissions[j]->student->flag_student(submissions[j]);
+                    submissions[j]->professor->flag_professor(submissions[j]);
+                    plagged[j]=1;
+                }
+                break;
+            }
+        }
+        std::unordered_set<long long> totalMatch;
+        for(long long i=0;i<(long long)rolled.size();i++)
+        {
+            if(checker.contains(bitsets[j],rolled[i])){
+                totalMatch.insert(rolled[i]);
+                totalMatches[j].insert(rolled[i]);
+                if(totalMatches[j].size()>=20 && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j]){
+                    submissions[j]->student->flag_student(submissions[j]);
+                    submissions[j]->professor->flag_professor(submissions[j]);
+                    plagged[j]=1;
+                }
+            }
+            if(totalMatch.size()>=20){
+                if(!plagged[curr])
+                {
+                    submissions[curr]->student->flag_student(submissions[curr]);
+                    submissions[curr]->professor->flag_professor(submissions[curr]);
+                    plagged[curr]=1;
+                }
+                if(std::abs(timestamps[curr]-timestamps[j])>1.0){
+                    break;
+                }
+            }
+            
+        }
+
+
+
+
+        for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets[j],rolled[i])){
                 count++;
@@ -179,6 +267,10 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
         }
 
         // DONE
+        // Also need to add the part of delayed flag call of 1 second window
+        // Also need to go reverse on auto submission and iterate till the plag not detected or
+        // plag detected but yet under 1 second is satisfied, break otherwise
+        // Add the condition to plag both files, if plag detected in 1 second window...
     }
 
     // Present submission bloom filter
@@ -193,17 +285,22 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
 void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
 {
     // We are going to use 2-layer hashes, since we are tagging plagged on a single 
-    std::vector<int> rolled1 = RollHash(submission,70);
-    std::vector<int> rolled = RollHash(submission,5);
+    std::vector<long long> rolled1 = RollHash(submission,70);
+    std::vector<int> rolled1int;
+    for (auto i : rolled1) {
+        i = static_cast<int>(i);
+        rolled1int.push_back(i);
+    }
+    std::vector<long long> rolled = RollHash(rolled1int,5);
 
     // Corner case check
     if (rolled.empty()) return;
 
-    int curr=bitsets75.size();
+    long long curr=bitsets75.size();
     BloomFilter checker;
     // Check how many non-overlapping hashes present in previous submissions, in reverse
-    for (int j=curr-1;j>=0;j--) {
-        for(int i=0;i<(int)rolled.size();i++)
+    for (long long j=curr-1;j>=0;j--) {
+        for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets75[j],rolled[i])){
                 // Plag present
@@ -234,11 +331,8 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
                 if(std::abs(timestamps[curr]-timestamps[j])>1.0) break;
             }
         }
-
-        // DONE
     }
-
-    // Present submission bloom filter
+    
     BloomFilter b;
     for(auto i: rolled){
         b.add(i);
@@ -249,34 +343,19 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
 
 
 void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,double start_time){
-    // can add bitset calculation part here, pass it by reference to the required functions
-    // then pushback as required inside that function
-
-    // Store time and pointer
     submissions.push_back(submission);
     timestamps.push_back(start_time);
     plagged.push_back(0);
 
-    
     std::unique_lock<std::mutex> lock(m);
     // To be placed before mutex???
 
     tokenizer_t file(submission->codefile);
     std::vector<int> submissionTokens = file.get_tokens();
-    
-
     // PART1
     len75check(submissionTokens,start_time);
-    // PART1 END
-
-
     //PART 2
     len15check(submissionTokens,start_time);
-    // PART 2 END
-
-    // PART 3 
-    // USE PATCHWORK ALGORITHM here
-    // PART 3 END
 }
 
 
@@ -285,33 +364,8 @@ void plagiarism_checker_t::add_submission(std::shared_ptr<submission_t> __submis
     auto start_time = std::chrono::high_resolution_clock::now();
     auto start_time_since_epoch = start_time.time_since_epoch();
     double start_time_in_seconds = std::chrono::duration<double>(start_time_since_epoch).count();
-
-    // Add submission to the queue
     {
         std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
         submission_queue.push({ __submission, start_time_in_seconds });
     }
-
-    // Immediately return, worker thread will process this in the background
 }
-
-
-
-// //testing purpose
-// int main(){
-//     std::vector<int> tokens1={1,2,3,4,6,9,4,2,1,5,8,44,2,9};
-//     std::vector<int> tokens2={1,2,3,4,6,1,3,5,7,8,9,4,2,44};
-
-//     std::vector<int> hash1 = RollHash(tokens1, 5);
-//     std::vector<int> hash2 = RollHash(tokens2, 5);
-
-//     for(int i=0; i<hash1.size(); i++){
-//         std::cout<<hash1[i]<<' ';
-//     }
-//     std::cout<<std::endl;
-//     for(int i=0; i<hash2.size(); i++){
-//         std::cout<<hash2[i]<<' ';
-//     }
-//     std::cout<<std::endl;
-    
-// }
