@@ -5,6 +5,7 @@
 #include<unordered_set>
 #include<thread>
 #include<mutex>
+#include<condition_variable>
 #include<chrono>
 #include<queue>
 #include<bitset>
@@ -30,12 +31,14 @@ protected:
     // Should take difference for timestamps?store initial time for constructor
     std::queue<std::pair<std::shared_ptr<submission_t>, double>> submission_queue; // Queue for submissions
     std::mutex m;  // Mutex to protect access to the queue
-    std::thread worker_thread; // Single worker thread
+    std::condition_variable cv;  // Condition variable to notify worker thread
+    std::thread worker_thread; // Worker thread
     bool thread_running; // Flag to check if thread is running
     void check_plag(std::shared_ptr<submission_t> __submission, double start_time);
     void len15check(std::vector<int>& submission, double start_time);
     void len75check(std::vector<int>& submission, double start_time);
     void patchCheck(std::vector<int>& submission, double start_time);
+    void worker();  // Worker thread function
 
     // to check if the file is already plagged
     std::vector<bool> plagged;
