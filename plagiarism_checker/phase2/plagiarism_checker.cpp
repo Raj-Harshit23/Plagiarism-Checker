@@ -139,30 +139,17 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         submissions.push_back(__submissions[i]);
     }
     thread_running = true;
-    worker_thread = std::thread([this] {
-        while (thread_running) {
-            std::shared_ptr<submission_t> submission;
-            double start_time;
-
-            {
-                std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
-                if (!submission_queue.empty()) {
-                    submission = submission_queue.front().first;
-                    start_time = submission_queue.front().second;
-                    submission_queue.pop(); // Remove the submission from the queue
-                }
-            }
-
-            if (submission) {
-                check_plag(submission, start_time); // Process the submission
-            }
-        }
-    });
-    worker_thread.detach(); // Detach so it runs in the background
+    worker_thread = std::thread(&plagiarism_checker_t::worker, this); // Start the worker thread in background
+    worker_thread.detach(); // Detach it so it runs independently
 }
 
-plagiarism_checker_t::~plagiarism_checker_t(void) {
+plagiarism_checker_t::~plagiarism_checker_t() {
     thread_running = false;
+    cv.notify_one(); // Notify the worker thread to exit if it's waiting
+
+    if (worker_thread.joinable()) {
+        worker_thread.join(); // Wait for the worker thread to finish if it’s joinable
+    }
 }
 
 
@@ -360,15 +347,46 @@ void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,d
     //PART 2
     len15check(submissionTokens,start_time);
 }
+void plagiarism_checker_t::worker() {
+    while (thread_running) {
+        std::shared_ptr<submission_t> submission;
+        double start_time;
 
+        {
+            std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
+
+            // Wait for a task to be available if the queue is empty
+            cv.wait(lock, [this] { return !submission_queue.empty() || !thread_running; });
+
+            if (!submission_queue.empty()) {
+                submission = submission_queue.front().first;
+                start_time = submission_queue.front().second;
+                submission_queue.pop(); // Remove the submission from the queue
+            }
+        }
+
+        if (submission) {
+            check_plag(submission, start_time); // Process the submission
+        }
+    }
+}
 
 
 void plagiarism_checker_t::add_submission(std::shared_ptr<submission_t> __submission) {
     auto start_time = std::chrono::high_resolution_clock::now();
     auto start_time_since_epoch = start_time.time_since_epoch();
     double start_time_in_seconds = std::chrono::duration<double>(start_time_since_epoch).count();
+
     {
-        std::unique_lock<std::mutex> lock(m); // Lock the queue for thread safety
+        std::lock_guard<std::mutex> lock(m);// Lock the queue for thread safety
         submission_queue.push({ __submission, start_time_in_seconds });
     }
+
+    cv.notify_one(); // Notify the worker thread that a new task is available
+    // {
+    //     std::lock_guard<std::mutex> lock(m);  // Lock the queue
+    //     submission_queue.push({submission, start_time});  // Push new submission
+    // }
+    // cv.notify_one()
+
 }
