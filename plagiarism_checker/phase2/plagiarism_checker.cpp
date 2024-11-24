@@ -131,8 +131,10 @@ std::vector<int> RollHash(std::vector<int> &tokens, int k){
 
 void plagiarism_checker_t::len15check(std::vector<int>& submission, double start_time)
 {
-    // DONT STORE HASHES, USE BITSET DIRECTLY
     std::vector<int> rolled = RollHash(submission,15);
+    // Corner case check
+    if (rolled.empty()) return;
+
     int curr=bitsets.size();
     // Check how many non-overlapping hashes present in previous submissions, in reverse
     for (int j=curr-1;j>=0;j--) {
@@ -177,10 +179,6 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
         }
 
         // DONE
-        // Also need to add the part of delayed flag call of 1 second window
-        // Also need to go reverse on auto submission and iterate till the plag not detected or
-        // plag detected but yet under 1 second is satisfied, break otherwise
-        // Add the condition to plag both files, if plag detected in 1 second window...
     }
 
     // Present submission bloom filter
@@ -190,6 +188,63 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
     }
     std::bitset<400000> bitArray = b.give();
     bitsets.push_back(bitArray);
+}
+
+void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
+{
+    // We are going to use 2-layer hashes, since we are tagging plagged on a single 
+    std::vector<int> rolled1 = RollHash(submission,70);
+    std::vector<int> rolled = RollHash(submission,5);
+
+    // Corner case check
+    if (rolled.empty()) return;
+
+    int curr=bitsets75.size();
+    BloomFilter checker;
+    // Check how many non-overlapping hashes present in previous submissions, in reverse
+    for (int j=curr-1;j>=0;j--) {
+        for(int i=0;i<(int)rolled.size();i++)
+        {
+            if(checker.contains(bitsets75[j],rolled[i])){
+                // Plag present
+                if(!plagged[curr])
+                {
+                    submissions[curr]->student->flag_student(submissions[curr]);
+                    submissions[curr]->professor->flag_professor(submissions[curr]);
+                    plagged[curr]=1;
+                }
+
+                // Plag close submissions
+                if(std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
+                {
+                    submissions[j]->student->flag_student(submissions[j]);
+                    submissions[j]->professor->flag_professor(submissions[j]);
+                    plagged[j]=1;
+                }
+                break;
+            }
+        }
+
+        // Continue to check for close submissions
+        if(plagged[curr])
+        {
+            while(j>0 && plagged[j])
+            {
+                j--;
+                if(std::abs(timestamps[curr]-timestamps[j])>1.0) break;
+            }
+        }
+
+        // DONE
+    }
+
+    // Present submission bloom filter
+    BloomFilter b;
+    for(auto i: rolled){
+        b.add(i);
+    }
+    std::bitset<400000> bitArray = b.give();
+    bitsets75.push_back(bitArray);
 }
 
 
@@ -202,6 +257,7 @@ void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,d
     timestamps.push_back(start_time);
     plagged.push_back(0);
 
+    
     std::unique_lock<std::mutex> lock(m);
     // To be placed before mutex???
 
@@ -210,7 +266,7 @@ void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,d
     
 
     // PART1
-    // FIND 75 MATCHINGS here
+    len75check(submissionTokens,start_time);
     // PART1 END
 
 
