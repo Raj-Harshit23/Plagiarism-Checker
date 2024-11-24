@@ -11,9 +11,10 @@ std::mutex m;
 
 
 std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
+    std::cerr<<"reach"<<std::endl;
     std::vector<long long> hashes;
     long long base_k=1;
-        
+    std::cerr<<k<<std::endl;
     for(long long i=0; i<k; i++){
         base_k=(base_k*BASE)%MOD;
     }
@@ -25,13 +26,13 @@ std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
         hash = (hash*BASE+tokens[i])% MOD;
     }
     hashes.push_back(hash);
-
     //compute for rest of the entries by updating hash
     for(long long i=k; i<tokens.size(); i++){
         hash=(hash-tokens[i-k])/BASE;
         hash=(hash+tokens[i]*(base_k/BASE))%MOD;
         hashes.push_back(hash);
     }
+    std::cerr<<hashes.size()<<std::endl;
     return hashes;
 }
 
@@ -110,7 +111,7 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
 
         std::vector<long long> rolled70 = RollHash(submissionTokens,70);
         std::vector<int> rolled70int;
-        for (auto jk : rolled70int) {
+        for (auto jk : rolled70) {
             jk = static_cast<int>(jk);
             rolled70int.push_back(jk);
         }
@@ -129,6 +130,7 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         }
         std::bitset<400000> origBitarr75 = orig75.give();
         bitsets75.push_back(origBitarr75);
+        submissions.push_back(__submissions[i]);
     }
     thread_running = true;
     worker_thread = std::thread([this] {
@@ -155,19 +157,16 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
 
 plagiarism_checker_t::~plagiarism_checker_t(void) {
     thread_running = false;
-    if (worker_thread.joinable()) {
-        worker_thread.join(); // Optionally, wait for thread to finish
-    }
 }
 
 
 
 void plagiarism_checker_t::len15check(std::vector<int>& submission, double start_time)
 {
-    // DONT STORE HASHES, USE BITSET DIRECTLY
     std::vector<long long> rolled = RollHash(submission,15);
     long long curr=bitsets.size();
     // Check how many non-overlapping hashes present in previous submissions, in reverse
+    std::unordered_set<long long> totalMatch;
     for (long long j=curr-1;j>=0;j--) {
         long long count=0;
         BloomFilter checker;
@@ -199,7 +198,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
                 break;
             }
         }
-        std::unordered_set<long long> totalMatch;
+        
         for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets[j],rolled[i])){
@@ -238,6 +237,9 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             // Need to adjust the THRESHOLD according to false positive rate
             if(count>=10)
             {
+                std::cerr<<i<<std::endl;
+                    std::cerr<<submissions.size()<<std::endl;
+                    std::cerr<<curr<<std::endl;
                 // Plag present
                 if(!plagged[curr])
                 {
@@ -280,6 +282,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
     }
     std::bitset<400000> bitArray = b.give();
     bitsets.push_back(bitArray);
+    totalMatches.push_back(totalMatch);
 }
 
 void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
@@ -298,17 +301,26 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
 
     long long curr=bitsets75.size();
     BloomFilter checker;
+    
+
     // Check how many non-overlapping hashes present in previous submissions, in reverse
     for (long long j=curr-1;j>=0;j--) {
         for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets75[j],rolled[i])){
                 // Plag present
+                // std::cerr<<i<<"asdf"<<std::endl;
                 if(!plagged[curr])
                 {
+                    // std::cerr<<i<<std::endl;
+                    // std::cerr<<submissions.size()<<std::endl;
+                    // std::cerr<<curr<<std::endl;
+
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
+                    // std::cerr<<i<<std::endl;
+
                 }
 
                 // Plag close submissions
@@ -346,9 +358,6 @@ void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,d
     submissions.push_back(submission);
     timestamps.push_back(start_time);
     plagged.push_back(0);
-
-    std::unique_lock<std::mutex> lock(m);
-    // To be placed before mutex???
 
     tokenizer_t file(submission->codefile);
     std::vector<int> submissionTokens = file.get_tokens();
