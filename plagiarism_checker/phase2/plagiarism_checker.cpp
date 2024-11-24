@@ -7,6 +7,7 @@ const long long BASE=37;
 const long long MOD=1e7+7;
 
 
+
 ThreadPool::ThreadPool() {
     // Initialization if needed (constructor logic)
 }
@@ -16,7 +17,7 @@ ThreadPool::~ThreadPool() {
 }
 
 void ThreadPool::Start() {
-    const uint32_t num_threads = 4;  // Or dynamically adjust
+    const uint32_t num_threads = 1;  // Or dynamically adjust
     for (uint32_t ii = 0; ii < num_threads; ++ii) {
         threads.emplace_back(&ThreadPool::ThreadLoop, this);
     }
@@ -27,18 +28,15 @@ void ThreadPool::QueueJob(const std::function<void()>& job) {
         std::unique_lock<std::mutex> lock(queue_mutex);
         jobs.push(job);
 
-        // Increment the job counter
-        {
-            std::lock_guard<std::mutex> lock(job_counter_mutex);
-            ++remaining_jobs;
-        }
+        // Increment the job counter atomically
+        remaining_jobs.fetch_add(1, std::memory_order_relaxed);
     }
     mutex_condition.notify_one();  // Notify worker threads
 }
 
 bool ThreadPool::busy() {
     std::unique_lock<std::mutex> lock(queue_mutex);
-    return !jobs.empty() || remaining_jobs > 0;
+    return !jobs.empty() || remaining_jobs.load(std::memory_order_relaxed) > 0;
 }
 
 void ThreadPool::Stop() {
@@ -50,8 +48,8 @@ void ThreadPool::Stop() {
 
     // Wait for all jobs to complete before stopping threads
     {
-        std::unique_lock<std::mutex> lock(job_counter_mutex);
-        all_jobs_done_condition.wait(lock, [this] { return remaining_jobs == 0; });
+        std::unique_lock<std::mutex> counter_lock(job_counter_mutex);
+        all_jobs_done_condition.wait(counter_lock, [this] { return remaining_jobs.load() == 0; });
     }
 
     // Join all threads before returning
@@ -79,21 +77,19 @@ void ThreadPool::ThreadLoop() {
 
         job();  // Execute the job
 
-        // After the job is done, decrement the job counter and notify if all jobs are done
-        {
-            std::lock_guard<std::mutex> lock(job_counter_mutex);
-            --remaining_jobs;
-        }
+        // After the job is done, decrement the job counter atomically
+        remaining_jobs.fetch_sub(1, std::memory_order_relaxed);
 
         // Notify when all jobs are done
         {
-            std::lock_guard<std::mutex> lock(job_counter_mutex);
-            if (remaining_jobs == 0) {
+            std::unique_lock<std::mutex> counter_lock(job_counter_mutex);
+            if (remaining_jobs.load() == 0) {
                 all_jobs_done_condition.notify_all();
             }
         }
     }
 }
+
 
 std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
     std::vector<long long> hashes;
@@ -218,8 +214,6 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
 
 
 
-
-
         //PATCHWORK STARTS NOW
         for(long long i=0;i<(long long)rolled.size();i++)
         {
@@ -260,11 +254,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             }
         }
 
-        // DONE
-        // Also need to add the part of delayed flag call of 1 second window
-        // Also need to go reverse on auto submission and iterate till the plag not detected or
-        // plag detected but yet under 1 second is satisfied, break otherwise
-        // Add the condition to plag both files, if plag detected in 1 second window...
+    
     }
 
     // Present submission bloom filter
