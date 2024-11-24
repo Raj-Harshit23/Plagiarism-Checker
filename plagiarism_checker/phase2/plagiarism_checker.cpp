@@ -402,6 +402,8 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         tokenizer_t origTokenizer(__submissions[i]->codefile);
         std::vector<int> submissionTokens = origTokenizer.get_tokens();
 
+
+        // to make RollHash for 15 by using 10+5 (double hash for lower prob of collisison)
         std::vector<long long> rolled1 = RollHash(submissionTokens,10);
         std::vector<int> rolled1int;
         for (auto jkl : rolled1) {
@@ -410,6 +412,7 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         }
         std::vector<long long> rolled = RollHash(rolled1int,5);
 
+        // to make RollHash for 75 by using 50+25 (double hash for lower prob of collisison)
         std::vector<long long> rolled70 = RollHash(submissionTokens,50);
         std::vector<int> rolled70int;
         for (auto jk : rolled70) {
@@ -418,20 +421,29 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         }
         std::vector<long long> rolled75 = RollHash(rolled70int,25);
 
+        //for adding original bitsets(storing rolled hashes of 15 tokens) and bitsets75(storing rolled hashes of 75 tokens)
         BloomFilter orig;
         for(auto j: rolled){
             orig.add(j);
         }
         std::bitset<400000> origBitarr = orig.give();
         bitsets.push_back(origBitarr);
-       
+        //adding 15 token bitsets
+
+
         BloomFilter orig75;
         for(auto j: rolled75){
             orig75.add(j);
         }
         std::bitset<400000> origBitarr75 = orig75.give();
         bitsets75.push_back(origBitarr75);
+        //adding 75 token bitsets
+
+
+
         submissions.push_back(__submissions[i]);
+        //finally also adding submsission pointer into submissions vector
+        
     }
     //starting threadpool object(initialized running in infintie loop until job in queue)
     worker.Start();
