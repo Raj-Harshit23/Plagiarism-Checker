@@ -97,7 +97,7 @@ public:
 };
 plagiarism_checker_t::plagiarism_checker_t(void) {}
 plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submission_t>> __submissions) {
-    long long numOrigs = __submissions.size();
+    numOrigs = __submissions.size();
     for(long long i=0;i<numOrigs;i++){
         totalMatches.push_back(std::unordered_set<long long>());
         plagged.push_back(0);
@@ -107,15 +107,21 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         tokenizer_t origTokenizer(__submissions[i]->codefile);
         std::vector<int> submissionTokens = origTokenizer.get_tokens();
 
-        std::vector<long long> rolled = RollHash(submissionTokens,15);
+        std::vector<long long> rolled1 = RollHash(submissionTokens,10);
+        std::vector<int> rolled1int;
+        for (auto jkl : rolled1) {
+            jkl = static_cast<int>(jkl);
+            rolled1int.push_back(jkl);
+        }
+        std::vector<long long> rolled = RollHash(rolled1int,5);
 
-        std::vector<long long> rolled70 = RollHash(submissionTokens,70);
+        std::vector<long long> rolled70 = RollHash(submissionTokens,50);
         std::vector<int> rolled70int;
         for (auto jk : rolled70) {
             jk = static_cast<int>(jk);
             rolled70int.push_back(jk);
         }
-        std::vector<long long> rolled75 = RollHash(rolled70int,5);
+        std::vector<long long> rolled75 = RollHash(rolled70int,25);
 
         BloomFilter orig;
         for(auto j: rolled){
@@ -163,7 +169,14 @@ plagiarism_checker_t::~plagiarism_checker_t(void) {
 
 void plagiarism_checker_t::len15check(std::vector<int>& submission, double start_time)
 {
-    std::vector<long long> rolled = RollHash(submission,15);
+    // std::vector<long long> rolled = RollHash(submission,15);
+    std::vector<long long> rolled1 = RollHash(submission,10);
+    std::vector<int> rolled1int;
+    for (auto i : rolled1) {
+        i = static_cast<int>(i);
+        rolled1int.push_back(i);
+    }
+    std::vector<long long> rolled = RollHash(rolled1int,5);
     long long curr=bitsets.size();
     // Check how many non-overlapping hashes present in previous submissions, in reverse
     std::unordered_set<long long> totalMatch;
@@ -180,42 +193,55 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             // Need to adjust the THRESHOLD according to false positive rate
             if(count>=10)
             {
+                std::cerr<<i<<std::endl;
+                    std::cerr<<submissions.size()<<std::endl;
+                    std::cerr<<curr<<std::endl;
                 // Plag present
-                if(!plagged[curr])
+                if(curr>numOrigs && !plagged[curr])
                 {
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
+                    std::cout<<"15"<<std::endl;
                 }
 
                 // Plag close submissions
-                if(std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
+                if(curr>numOrigs && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[curr])
                 {
-                    submissions[j]->student->flag_student(submissions[j]);
-                    submissions[j]->professor->flag_professor(submissions[j]);
-                    plagged[j]=1;
+                    submissions[curr]->student->flag_student(submissions[curr]);
+                    submissions[curr]->professor->flag_professor(submissions[curr]);
+                    plagged[curr]=1;
+                    std::cout<<"15"<<std::endl;
                 }
                 break;
             }
         }
         
+
+
+
+
+
+        //PATCHWORK STARTS NOW
         for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets[j],rolled[i])){
                 totalMatch.insert(rolled[i]);
                 totalMatches[j].insert(rolled[i]);
-                if(totalMatches[j].size()>=20 && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j]){
+                if(j>numOrigs && totalMatches[j].size()>=20 && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j]){
                     submissions[j]->student->flag_student(submissions[j]);
                     submissions[j]->professor->flag_professor(submissions[j]);
                     plagged[j]=1;
+                    std::cout<<"patchwork"<<std::endl;
                 }
             }
             if(totalMatch.size()>=20){
-                if(!plagged[curr])
+                if(curr>numOrigs && !plagged[curr])
                 {
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
+                    std::cout<<"patchwork"<<std::endl;
                 }
                 if(std::abs(timestamps[curr]-timestamps[j])>1.0){
                     break;
@@ -227,37 +253,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
 
 
 
-        for(long long i=0;i<(long long)rolled.size();i++)
-        {
-            if(checker.contains(bitsets[j],rolled[i])){
-                count++;
-                i+=15;  // NON OVERLAPPING INCREMENT CONDITION
-            }
-            // CHECK COUNT>=10 HERE ONLY
-            // Need to adjust the THRESHOLD according to false positive rate
-            if(count>=10)
-            {
-                std::cerr<<i<<std::endl;
-                    std::cerr<<submissions.size()<<std::endl;
-                    std::cerr<<curr<<std::endl;
-                // Plag present
-                if(!plagged[curr])
-                {
-                    submissions[curr]->student->flag_student(submissions[curr]);
-                    submissions[curr]->professor->flag_professor(submissions[curr]);
-                    plagged[curr]=1;
-                }
-
-                // Plag close submissions
-                if(std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
-                {
-                    submissions[curr]->student->flag_student(submissions[curr]);
-                    submissions[curr]->professor->flag_professor(submissions[curr]);
-                    plagged[curr]=1;
-                }
-                break;
-            }
-        }
+        
 
         if(plagged[curr])
         {
@@ -288,13 +284,13 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
 void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
 {
     // We are going to use 2-layer hashes, since we are tagging plagged on a single 
-    std::vector<long long> rolled1 = RollHash(submission,70);
+    std::vector<long long> rolled1 = RollHash(submission,50);
     std::vector<int> rolled1int;
     for (auto i : rolled1) {
         i = static_cast<int>(i);
         rolled1int.push_back(i);
     }
-    std::vector<long long> rolled = RollHash(rolled1int,5);
+    std::vector<long long> rolled = RollHash(rolled1int,25);
 
     // Corner case check
     if (rolled.empty()) return;
@@ -310,25 +306,23 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
             if(checker.contains(bitsets75[j],rolled[i])){
                 // Plag present
                 // std::cerr<<i<<"asdf"<<std::endl;
-                if(!plagged[curr])
+                if(curr>numOrigs && !plagged[curr])
                 {
-                    // std::cerr<<i<<std::endl;
-                    // std::cerr<<submissions.size()<<std::endl;
-                    // std::cerr<<curr<<std::endl;
-
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
+                    std::cout<<"75"<<std::endl;
                     // std::cerr<<i<<std::endl;
 
                 }
 
                 // Plag close submissions
-                if(std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
+                if(j>numOrigs && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
                 {
                     submissions[j]->student->flag_student(submissions[j]);
                     submissions[j]->professor->flag_professor(submissions[j]);
                     plagged[j]=1;
+                    std::cout<<"75"<<std::endl;
                 }
                 break;
             }
