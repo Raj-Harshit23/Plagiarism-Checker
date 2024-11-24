@@ -8,37 +8,38 @@ const long long MOD=1e7+7;
 
 
 
-ThreadPool::ThreadPool() {
-    // Initialization if needed (constructor logic)
-}
+ThreadPool::ThreadPool() {}
 
+// destructor to stop the thread pool and clean up resources
 ThreadPool::~ThreadPool() {
-    Stop();  // Ensure everything is cleaned up and threads are joined
+    Stop();
 }
 
+// starts the threads and initiates the thread loop
 void ThreadPool::Start() {
-    const uint32_t num_threads = 1;  // Or dynamically adjust
+    const uint32_t num_threads = 1;
     for (uint32_t ii = 0; ii < num_threads; ++ii) {
         threads.emplace_back(&ThreadPool::ThreadLoop, this);
     }
 }
 
+// adds a job to the job queue and increments the job counter
 void ThreadPool::QueueJob(const std::function<void()>& job) {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
         jobs.push(job);
-
-        // Increment the job counter atomically
         remaining_jobs.fetch_add(1, std::memory_order_relaxed);
     }
-    mutex_condition.notify_one();  // Notify worker threads
+    mutex_condition.notify_one();
 }
 
+// checks if the thread pool is busy processing jobs
 bool ThreadPool::busy() {
     std::unique_lock<std::mutex> lock(queue_mutex);
     return !jobs.empty() || remaining_jobs.load(std::memory_order_relaxed) > 0;
 }
 
+// stops the thread pool, waits for all jobs to finish, and joins threads
 void ThreadPool::Stop() {
     {
         std::unique_lock<std::mutex> lock(queue_mutex);
@@ -46,19 +47,18 @@ void ThreadPool::Stop() {
     }
     mutex_condition.notify_all();
 
-    // Wait for all jobs to complete before stopping threads
     {
         std::unique_lock<std::mutex> counter_lock(job_counter_mutex);
         all_jobs_done_condition.wait(counter_lock, [this] { return remaining_jobs.load() == 0; });
     }
 
-    // Join all threads before returning
     for (std::thread& active_thread : threads) {
         active_thread.join();
     }
     threads.clear();
 }
 
+// the main loop for each thread to process jobs from the queue
 void ThreadPool::ThreadLoop() {
     while (true) {
         std::function<void()> job;
@@ -69,18 +69,13 @@ void ThreadPool::ThreadLoop() {
             });
 
             if (should_terminate && jobs.empty()) {
-                return; // Exit if termination is requested and the job queue is empty
+                return;
             }
             job = jobs.front();
             jobs.pop();
         }
-
-        job();  // Execute the job
-
-        // After the job is done, decrement the job counter atomically
+        job();
         remaining_jobs.fetch_sub(1, std::memory_order_relaxed);
-
-        // Notify when all jobs are done
         {
             std::unique_lock<std::mutex> counter_lock(job_counter_mutex);
             if (remaining_jobs.load() == 0) {
@@ -89,6 +84,37 @@ void ThreadPool::ThreadLoop() {
         }
     }
 }
+
+//https://stackoverflow.com/questions/15752659/thread-pooling-in-c11 
+//BASED ON THIS DISCUSSION ON STACKOVERFLOW. CHANGED TO MAKE QUEUE EMPTY FOR DESTRUCTOR TO INITIATE DESTRUCTION. ALSO ONLY 1 THREAD USED FOR THE POOL.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 std::vector<long long> RollHash(std::vector<int> &tokens, long long k){
@@ -156,7 +182,6 @@ public:
     }
 
     bool contains(std::bitset<400000>& givenArray,long long value) {
-        // return givenArray[hash1(value)] && givenArray[hash2(value)] && givenArray[hash3(value)] && givenArray[hash4(value)] && givenArray[hash5(value)] && givenArray[hash6(value)] && givenArray[hash7(value)] && givenArray[hash8(value)] && givenArray[hash9(value)] && givenArray[hash10(value)] && givenArray[hash11(value)] && givenArray[hash12(value)] && givenArray[hash13(value)] && givenArray[hash14(value)] && givenArray[hash15(value)] && givenArray[hash16(value)] && givenArray[hash17(value)] && givenArray[hash18(value)] && givenArray[hash19(value)] && givenArray[hash20(value)];
         return givenArray[hash1(value)] && givenArray[hash2(value)] && givenArray[hash3(value)] && givenArray[hash4(value)] && givenArray[hash5(value)] && givenArray[hash6(value)] && givenArray[hash7(value)] && givenArray[hash8(value)] && givenArray[hash9(value)] && givenArray[hash10(value)] && givenArray[hash11(value)] && givenArray[hash12(value)] && givenArray[hash13(value)] ;
     }
 };
@@ -195,6 +220,7 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
                 // Plag present
                 if(curr>numOrigs && !plagged[curr])
                 {
+
                     submissions[curr]->student->flag_student(submissions[curr]);
                     submissions[curr]->professor->flag_professor(submissions[curr]);
                     plagged[curr]=1;
@@ -211,9 +237,6 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             }
         }
         
-
-
-
         //PATCHWORK STARTS NOW
         for(long long i=0;i<(long long)rolled.size();i++)
         {
@@ -240,11 +263,6 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
             
         }
 
-
-
-
-        
-
         if(plagged[curr])
         {
             while(j>0 && plagged[j])
@@ -267,9 +285,30 @@ void plagiarism_checker_t::len15check(std::vector<int>& submission, double start
     totalMatches.push_back(totalMatch);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void plagiarism_checker_t::len75check(std::vector<int>& submission, double start_time)
 {
-    // We are going to use 2-layer hashes, since we are tagging plagged on a single 
+    // were going to use 2-layer rolled hashes since we are tagging plagged on a single index so we need to make sure of it
+    // the logic is if a hash collisioon caused a value to be set, it shouldnt be counted... so in doing 50+25 we make sure hash collisions have to occur 25 times over!! 
     std::vector<long long> rolled1 = RollHash(submission,50);
     std::vector<int> rolled1int;
     for (auto i : rolled1) {
@@ -277,20 +316,23 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
         rolled1int.push_back(i);
     }
     std::vector<long long> rolled = RollHash(rolled1int,25);
+    //final rolled hash
 
-    // Corner case check
+
+    // corner case check
     if (rolled.empty()) return;
 
     long long curr=bitsets75.size();
-    BloomFilter checker;
-    
 
-    // Check how many non-overlapping hashes present in previous submissions, in reverse
+    BloomFilter checker;
+    //object for contains function call
+
+    // check how many non-overlapping hashes present in previous submissions, in reverse
     for (long long j=curr-1;j>=0;j--) {
         for(long long i=0;i<(long long)rolled.size();i++)
         {
             if(checker.contains(bitsets75[j],rolled[i])){
-                // Plag present
+                // plag present
                 if(curr>numOrigs && !plagged[curr])
                 {
                     submissions[curr]->student->flag_student(submissions[curr]);
@@ -299,7 +341,7 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
 
                 }
 
-                // Plag close submissions
+                // plag close submissions
                 if(j>numOrigs && std::abs(timestamps[curr]-timestamps[j])<1.0 && !plagged[j])
                 {
                     submissions[j]->student->flag_student(submissions[j]);
@@ -310,7 +352,7 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
             }
         }
 
-        // Continue to check for close submissions
+        // continue to check for close submissions
         if(plagged[curr])
         {
             while(j>0 && plagged[j])
@@ -321,6 +363,7 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
         }
     }
     
+    //object for adding new file as bitset to bitsets75 vector
     BloomFilter b;
     for(auto i: rolled){
         b.add(i);
@@ -329,36 +372,33 @@ void plagiarism_checker_t::len75check(std::vector<int>& submission, double start
     bitsets75.push_back(bitArray);
 }
 
-
 void plagiarism_checker_t::check_plag(std::shared_ptr<submission_t> submission,double start_time){
     submissions.push_back(submission);
     timestamps.push_back(start_time);
     plagged.push_back(0);
-
+    // add file such that start time is set and originallly assumed not plagged(innocent until proven guilty :))
     tokenizer_t file(submission->codefile);
     std::vector<int> submissionTokens = file.get_tokens();
-    // PART1
+    // check for large(75 tokens)
     len75check(submissionTokens,start_time);
-    //PART 2
+    // check for small(15 tokens) 10 matches between 2 files OR 20 matches between a file and all other previous(+1 second) files
     len15check(submissionTokens,start_time);
 }
 
-
-
+//void constructor made
 plagiarism_checker_t::plagiarism_checker_t(void) {}
+
+//IMPORTANT CONSTRUCTOR
 plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submission_t>> __submissions) {
-
-        // std::cerr<<"dvdgd"<<std::endl;
-
+    // taking numOrigs to precompute for original files
     numOrigs = __submissions.size();
     for(int i=0;i<numOrigs;i++){
-        // std::cerr<<i<<numOrigs<<std::endl;
-
         totalMatches.push_back(std::unordered_set<long long>());
         plagged.push_back(0);
         timestamps.push_back(0);
+        //setting empty sets, bools, int wherever required
 
-
+        //now rolled hash to bitset using RollHash and BloomFilter to get bitsets of orig filse
         tokenizer_t origTokenizer(__submissions[i]->codefile);
         std::vector<int> submissionTokens = origTokenizer.get_tokens();
 
@@ -392,17 +432,16 @@ plagiarism_checker_t::plagiarism_checker_t(std::vector<std::shared_ptr<submissio
         std::bitset<400000> origBitarr75 = orig75.give();
         bitsets75.push_back(origBitarr75);
         submissions.push_back(__submissions[i]);
-        // std::cerr<<i<<numOrigs<<std::endl;
     }
-        // std::cerr<<"dvdgd"<<std::endl;
+    //starting threadpool object(initialized running in infintie loop until job in queue)
     worker.Start();
 }
 
 plagiarism_checker_t::~plagiarism_checker_t() {
     while (worker.busy()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));  // Sleep a bit to avoid busy-waiting
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));  // sleep to stop weight on ram
     }
-    // All jobs are finished, stop the pool
+    // all jobs finished stop the pool
     worker.Stop();
 } 
 
@@ -410,11 +449,12 @@ void plagiarism_checker_t::add_submission(std::shared_ptr<submission_t> __submis
     auto start_time = std::chrono::high_resolution_clock::now();
     auto start_time_since_epoch = start_time.time_since_epoch();
     double start_time_in_seconds = std::chrono::duration<double>(start_time_since_epoch).count();
-
+    //time stored for allowing functionality of marking older submissions ass plag if plagged with a submission <1 seconds
     {
+        // adding job to queue(very quick)
         worker.QueueJob([this, __submission, start_time_in_seconds]() {
-            std::cerr << "Starting plagiarism check for submission " << __submission->id << std::endl;
             check_plag(__submission, start_time_in_seconds);
         });
     }
+    //exits in nearly no time
 }
